@@ -26,37 +26,28 @@ macro_rules! list {
     };
 }
 
-use std::{cmp, collections::BinaryHeap, mem};
-
-impl Ord for ListNode {
-    fn cmp(&self, other: &Self) -> cmp::Ordering {
-        other.val.cmp(&self.val)
-    }
-}
-
-impl PartialOrd<ListNode> for ListNode {
-    fn partial_cmp(&self, other: &ListNode) -> Option<cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
+use std::{cmp::Reverse, collections::BinaryHeap};
 
 impl Solution {
     pub fn merge_k_lists(mut lists: Vec<Option<Box<ListNode>>>) -> Option<Box<ListNode>> {
+        // Min-heap of (head value, list index), one entry per non-empty list.
+        let mut heap: BinaryHeap<_> = lists
+            .iter()
+            .enumerate()
+            .filter_map(|(i, list)| Some((Reverse(list.as_ref()?.val), i)))
+            .collect();
+
         let mut head = None;
         let mut tail = &mut head;
-        let mut heap = BinaryHeap::new();
-        for node in lists.into_iter().flatten() {
-            heap.push(node);
-        }
-        while let Some(mut node) = heap.pop() {
-            let mut next = mem::take(&mut node.next);
-            *tail = Some(node);
-            if let Some(node) = tail {
-                tail = &mut node.next;
+        while let Some((_, i)) = heap.pop() {
+            let mut smallest = lists[i]
+                .take()
+                .expect("heap only holds indices of non-empty lists");
+            lists[i] = smallest.next.take();
+            if let Some(new_head) = &lists[i] {
+                heap.push((Reverse(new_head.val), i));
             }
-            if let Some(node) = next {
-                heap.push(node);
-            }
+            tail = &mut tail.insert(smallest).next;
         }
         head
     }
@@ -89,6 +80,22 @@ mod tests {
         assert_eq!(
             Solution::merge_k_lists(vec![list![0, 2, 5]]),
             list![0, 2, 5]
+        )
+    }
+
+    #[test]
+    fn empty_lists_mixed_with_non_empty() {
+        assert_eq!(
+            Solution::merge_k_lists(vec![list![], list![1, 3], list![], list![2], list![]]),
+            list![1, 2, 3]
+        )
+    }
+
+    #[test]
+    fn negative_values_and_duplicates_across_lists() {
+        assert_eq!(
+            Solution::merge_k_lists(vec![list![-10, -3, 0], list![-5, -3, 7], list![-3]]),
+            list![-10, -5, -3, -3, -3, 0, 7]
         )
     }
 }
