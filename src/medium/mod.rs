@@ -1,6 +1,7 @@
 mod p11_container_with_most_water;
 mod p12_integer_to_roman;
 mod p240_search_2d_matrix_2;
+mod p2914_minimum_number_of_changes_to_make_binary_string_beautiful;
 mod p2_add_two_numbers;
 mod p3_longest_substring_without_repeating_characters;
 mod p5_longest_palindromic_substring;
