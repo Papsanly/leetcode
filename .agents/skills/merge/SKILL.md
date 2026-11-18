@@ -3,10 +3,10 @@ name: merge
 description: >-
   Merge the current changes of the leetcode Rust repository
   (github.com/Papsanly/leetcode) into main: commit them, rebase onto
-  origin/main, fast-forward push to GitHub, and fast-forward the main
-  checkout. Only invoke this skill when the user has explicitly requested
-  merging (or landing) the changes, not merely for review, preparation,
-  passing checks, or installing or editing this skill.
+  origin/main, check them with cargo clippy, fast-forward push to GitHub,
+  and fast-forward the main checkout. Only invoke this skill when the user
+  has explicitly requested merging (or landing) the changes, not merely for
+  review, preparation, passing checks, or installing or editing this skill.
 disable-model-invocation: true
 metadata:
   delta-action: land
@@ -30,9 +30,11 @@ not for that repository.
   success. If a blocker stops you, say plainly that the changes have **not**
   merged, name the blocker, and describe the state you left (for example
   "committed locally, nothing pushed").
-- **Never run, install, or require `cargo`, `rustc`, or `rustup`.** The owner
-  does not have a Rust toolchain on this machine and does not want one. Its
-  absence is not a blocker and there is no build or test step.
+- **`cargo clippy` is a required check** (step 4). The owner installed a
+  stable Rust toolchain through `rustup`. Never install, update, or switch
+  toolchains or components yourself (`rustup default`, `rustup update`,
+  `rustup toolchain install`, `rustup component add`). If `cargo clippy`
+  cannot run, that is a blocker: stop and report it.
 - Never force-push (`--force`, `--force-with-lease`), never rewrite commits
   that are already on `origin/main`, and never push to another branch as a
   substitute for `main`.
@@ -159,10 +161,10 @@ Record `git rev-parse HEAD`. Every check below must hold for that exact
 commit; if `HEAD` changes afterwards (for example after another rebase), run
 them again.
 
-**Required checks.** When this skill was written the repository defined
-none: no CI configuration (`.github/workflows/` or similar), no git hooks,
-and no `AGENTS.md`, `CONTRIBUTING`, or other contribution policy. Confirm
-that is still true:
+**Repository-defined checks.** When this skill was written the repository
+defined none of its own: no CI configuration (`.github/workflows/` or
+similar), no git hooks, and no `AGENTS.md`, `CONTRIBUTING`, or other
+contribution policy. Confirm that is still true:
 
 ```
 git ls-files .github AGENTS.md AGENT.md "CONTRIBUTING*" "README*"
@@ -194,8 +196,27 @@ have not merged, and say that this skill needs updating for the new checks.
    missing file. A new difficulty directory likewise needs its `mod` line in
    `src/lib.rs`.
 
-If a static check fails, stop and report that the changes have not merged
-(the commits stay local; nothing is pushed).
+**Clippy** (always, after the static checks):
+
+```
+cargo clippy --all-targets -- -D warnings
+```
+
+Exit code 0 is a pass; anything else is a failure, including `cargo` not
+being able to run.
+
+- `--all-targets` includes the `#[cfg(test)]` modules. `-D warnings` turns
+  every warning, from clippy or the compiler, into an error, so a run that
+  finished with warnings cannot be mistaken for a pass.
+- Run it on the clean working tree that step 2 leaves, so it checks exactly
+  the commit being pushed. Clippy only sees files that are in the module
+  tree, which is why static check 2 comes first.
+- On failure, report the diagnostics (file, line, lint name). Do not edit
+  code, add `#[allow(...)]`, run `cargo clippy --fix`, or drop `-D warnings`
+  to get past it.
+
+If any check fails, stop and report that the changes have not merged (the
+commits stay local; nothing is pushed).
 
 ## 5. Merge: fast-forward push to GitHub
 
